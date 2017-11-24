@@ -1,0 +1,3 @@
+#!/bin/sh
+
+/usr/local/bioinf/yamap/bin/yamap_gui.pl > /dev/null 2>&1 &

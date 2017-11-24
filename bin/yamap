@@ -1,0 +1,4 @@
+#!/bin/sh
+
+source /usr/local/bioinf/config_files/bioenvrc 
+/usr/local/bin/yamap.pl > /dev/null 2>&1 &

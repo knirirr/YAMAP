@@ -1,0 +1,179 @@
+<HTML>
+<HEAD>
+<TITLE>QuickMine manual</TITLE>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<link rel="stylesheet" href="quickmineoutput.css" type="text/css">
+</HEAD>
+
+<!--<BODY bgcolor="#FFFFCC">-->
+<body style='background-color:#FF6633;'>
+<table align="center" style='border:solid;border-width:2px;border-color:navy;background-color:#FFFFCC'>
+<tr><td>
+
+
+<table border="2" cellspacing="2" cellpadding="2" bgcolor="#FFFFFF">
+  <tr valign="middle">
+    <td width="90%"><span class="quickminetitle">QuickMine manual</span> </td>
+    <td width="10%"><img src="construction.jpeg"></td>
+  </tr>
+</table>
+
+
+<a name="index"></a>
+
+<UL>
+	<li><a href="#intro">Introduction</a>
+	<li><a href="#quickmine">Using QuickMine</a></li>	
+		<ul>
+			<LI><A HREF="#input">Input files</A></LI>
+			<LI><A HREF="#self">Self-BLAST or Database BLAST</A></LI>
+			<LI><A HREF="#pipeline">QuickMine Pipeline</A></LI>
+			<LI><A HREF="#config">Configuration</A></LI>
+			<LI><A HREF="#require">Requirements</A></LI>
+		</ul>
+	<li><a href="#yamap">YAMAP interface</a></li>	
+		<ul>
+			<li><A HREF="#basic">Basic</A></li>
+			<li><A HREF="#advanced">Advanced</A></li>
+			
+	
+	</UL>
+		</ul>
+	<li><a href="#other_things">Other information</a>.
+		<ul>
+			<LI><A HREF="#bugs">Bug reporting/known bugs</A></LI>
+			<LI><A HREF="#convert">File conversion/handling</A></LI>
+		</ul>
+	
+</UL>
+<!-- INDEX END -->
+
+<hr>
+<font color="green">
+<center>
+<h1><a name="intro">Introduction</h1>
+</center>
+</font>
+<p>QuickMine is a suite of Perl scripts capable of the analysis of large volumes of genomic data. It has been written to interrogate such data to find genomic features of interest, with particular emphasis on lineage specific genes, including 'orphans'. The pipeline makes use of a number of external programmes including BLAST. Output is generated in HTML allowing for simple navigation of the data.
+
+<center>
+<br><a href="#index">To the top.</a>
+</center>
+<hr>
+<hr>
+<font color="green">
+<center>
+<h1><a name="quickmine">Using QuickMine</h1>
+</center>
+</font>
+<h3><a name="input">Input files</h3>
+<p>Input files should be in fasta format. To convert file formats <a href="ftp://ftp.bio.indiana.edu/molbio/readseq">readseq</a> may be useful.
+<p>QuickMine was developed to use files obtained from the NCBI Ref-Seq database with filenames in the format NC_000000.faa. However, most filenames are acceptable. However, there must be no white-space in the filename.
+<p>Multiple sequence files can be selected in one QuickMine run. These files can be in DNA or Protein format and can contain one or multiple sequences, providing each sequence has a fasta header line (>).
+<h3><a name="self">Self_BLAST or Database BLAST</h3>
+<p>QuickMine was initially developed to compare a collection of genomes to one another, hence perform a Self-BLAST. However it is possible to use QuickMine to BLAST against any BLAST database. Choosing not to run a Self_BLAST results in some of the output files providing information of limited use (for example, the dot plots (or synteny plots)).
+<h3><a name="pipeline">QuickMine Pipeline</h3>
+<p>The QuickMine pipeline consists of 18 perl scripts and 1 configuration file. Of the 18 scripts, there are 17 scripts involved in processing data, the other regulates the execution of 17 processing scripts The perl script quickmine.pl is responsible for running the processing scripts. It is also responsible for generating data required for the other scripts to run and executes the BLAST searches. This script obtains all the variables from the configuration file. These values are then used to determine which sections of the pipeline need to be run and also provide the parameters required by the processing scripts. The QuickMine pipeline can be broadly split up into four groups:<br>
+1.	Pre-processing<br>
+2.	BLASTing<br>
+3.	Parsing<br>
+4.	Plotting<br>
+
+<p><h4>Pre-Processing</h4>The Perl script 2qmfasta.pl is responsible for formatting the sequence files ready for the scripts further down the pipeline to utilise. This simply involves adding a unique identifier to the start of the FASTA header. The files produced by the script are used to generate the self BLAST database. If the value of the write_fasta_files parameter obtained from the configuration file is equal to 1, 2qmfasta.pl will generate a fasta file for each sequence. The script fasta_html.pl will then generate a web interface (QM.html) allowing users access to each fasta file.<br><br> If a self BLAST database is required, quickmine.pl performs a system call, prompting the execution of formatdb using the parameters provided in the configuration file. Formatdb is a program for formatting BLAST databases from either FASTA or ASN.1 formats, in this case it formats our SELF_blast_Database FASTA file.
+
+<p><h4>BLASTing</h4>Quickmine.pl initiates all the BLAST searches when running the entire QuickMine pipeline on a local machine. The parameters used in the BLAST search are determined by the user input in the configuration file. An alternative is to stop the pipeline at this point and use Condor for performing the computationally intensive BLAST searches. The script make_cmd.pl is available for creating a Condor submission file. Once Condor has finished its jobs, the pipeline can be started again from the first script in the parsing group.<br><br> It may be possible that the user has access to a Grid system. If this is the case, the script make_globus_cmd.pl is available for creating a Condor submission file that submits jobs to the Globus universe. <br><br>If you are running QuickMine through YAMAP, currently you have to run the jobs locally.
+
+<p><h4>Parsing</h4>This section of the pipeline accounts for the majority of the Perl scripts and creates the majority of the human readable output in HTML.<br><br> The first script in this section is called get_orphans.pl. This script utilises the BioPerl module Bio::SearchIO to parse through the BLAST reports. Get_orphans.pl generates five HTML files for each input file. The overview.html file is possibly the most important file created. It constitutes a matrix in which each row represents a sequence from the relevant input file and each column represents a different input file (in the case of a Self-BLAST). The numerical values in the elements of the matrix XY indicate the number of sequences in the input file represented by column Y that possess significant similarity to the sequence in row X. The final column on each row displays the total number of input files containing a match to the sequence. This overview file is the input of several scripts further down the pipeline.<br><br>N.B. If running against another database rather than as a Self-BLAST, there will be a single column headed '.*'. This column represents the whole database and thus merely shows the number of hits a sequence has against the database.<br><br>The second output file, matrix.html, has the same matrix format as overview.html. However, in this file, element XY shows the best hit (the sequence with the most significant match), from the input file represented by column Y to the sequence in row X.<br><br> The third output file, rank.html, lists the sequences in the relevant input file and shows the top hits from each other input file in rank order. <br><br>The overview.html, matrix.html and rank.html files all provide a link to each sequence's BLAST report.<br><br> The fourth output file, scores.html, lists the all the hits and the e-value of each hit to each sequence. The final file, tophit.html, lists the top hit to each sequence.<br><br> In some cases, there may be 100,000's of BLAST reports to parse; hence get_orphans.pl can take a long time to run. An alternative to running get_orphans.pl as part of the pipeline is to run it on Condor. The script make_perl_cmd.pl is available for creating a suitable Condor submission file. Once get_orphans.pl has been run on each file, the QuickMine pipeline can be restarted from the next script. <br><br>If you are running QuickMine through YAMAP, currently you have to run the jobs locally.<br><br>
+
+Hits_parser.pl produces a hits.html file for each input file. The hits.hmtl file contains a list of all the input files that the relevant query file was compared against and displays the number of sequences in the query file that hit each other file. It displays this value as a percentage of total sequences. It also displays the number of total hits i.e. some sequence may hit more than one sequence in a particular file.<br><br>
+
+Orphan_count.pl parses through the overview.html output files to determine which sequences do not have significant similarity to any sequence in a different input file. It lists these orphan genes in orphan_list.html files and provides a summary of the number and percentage of orphans in each file analysed in orphan_count.html.<br><br>
+
+Orphan_size.pl produces orphan_size.html and orphan.faa.complete files. The BioPerl module Bio::SeqIO is used by orphan_size.pl to parse through the .faa.complete files and search for the orphans listed in the orphan_list.html files. Once identified, their sequence is printed out to the orphan.faa.complete files and the number of amino acids are counted. If an orphan sequence contains less than 150 amino acids, it is deemed to be a short orphan. If the sequence contains 150 amino acids or greater, it is classed as a long orphan. The number of each class is counted up for each file and the average orphan size is calculated. This information is printed to the orphan_size.html file.<br><br>
+
+Paralogue_count.pl produces paralogous_orphans.html and paralogue_count.html. Paralogous_orphans.html lists the orphan genes in each input file that have significant similarity to another sequence in the same file and displays the number of sequences it is significantly similar to. Paralogue_count.html provides a summary, listing the number of paralogous orphans there are in each input file. <br><br>
+
+Incremental_orphan.pl parses through the overview.html output files to generate orphan_increment.html files. These files show the same matrix as the overview.html files, however it has an additional indicator column for each input file. This column indicates whether the relevant sequence is still considered to be an orphan i.e. does not possess a significant hit to any sequences in this input file or any of the preceding files. If a hit has been found, the indicator column will contain an N, if not it will contain a Y. Once a hit is found, the indicator columns will all be set to N for the remainder of the row. The script orphan_time.pl uses the orphan_increment.html files to generate orphan_time.html. This file contains a matrix. Each row and each column represents an input file. The number in the element XY3 represents the number of orphans in the input file in row X, after being BLASTed against the file in column Y3 and also the files in columns Y2 and Y1. Thus the matrix provides data illustrating the change in orphan number in each input file as more files are added to the comparison.<br><br>
+
+Binary_matrix.pl simply converts all the values in overview.html files to a 0 (no hits) or a 1 (hit at least one sequence in the respective file).
+
+<p><h4>Plotting</h4>All the scripts written to generate plots utilise gnuplot. Genome_plot.pl generates a plot for each input file describing the change in orphan number as more input files are included in the analysis. It obtains the data from orphan_time.html. In order to produce the plot, several output files are generated. Gene_plotter_commands.dat contains the gnuplot commands necessary for generating the desired plot. Gene_plotter.dat contains the data in a format that can be read by gnuplot. Gnuplot creates the plot in png format. Genome_plot.pl uses a system call to convert png to jpeg. Finally it generates orphan_plot.html to display the jpeg image. Genome_percent_plot.pl is identical to genome_plot except it converts the data in orphan_time.html to a percentage of total sequences in each file.<br><br>
+
+Gnu_plotter.pl and gnu_percent_plotter.pl are very similar to genome_plot.pl and genome_percent_plot.pl. However, instead of generating a plot for each input file, it generates a single plot displaying a line for each input file. <br><br>
+
+Dot_plot.pl utilises the data in matrix.html to produce a dot plot for each input file against every other input file. Such plots can give an indication of how closely related two input files are and can be useful in finding regions of inversion in closely related sequences. As in the other plotting scripts, it produces a data file, a command file, a png file, a jpeg image and a HTML file. As different output files are created for every combination of input files, it is very easy to accumulate a large number of output files very quickly. Therefore it is recommended that this option is used sparingly. <br><br>
+
+The final script in the pipeline is summarizer.pl. This script generates index.html. This will be loaded by web browsers when viewing the output directory. Summarizer.pl generates a list of all the HTML files created in the QuickMine pipeline, it prints this list and links to each one to the file index.html. Thus it provides an easy and simple method for the user to navigate through their results.
+<center>
+<br><a href="#index">To the top.</a>
+</center>
+<h3><a name="config">Configuration</h3>
+<p>QuickMine utilises a configuration file. This file contains all the arguments required to perform the whole QuickMine analysis. By modifying the config file, you can select which section of the pipeline to run. It is also contains the paths to the input files and the path to the output directory. The config file also contains information such as the command used to format the BLAST database.
+
+It is written in a simple format and is easily extendable. QuickMine reads the file by utilising the Config::Simple perl module.
+<center>
+<br><a href="#index">To the top.</a>
+</center>
+<h3><a name="require">Requirements</h3>
+<p>There are two types of dependency required by QuickMine: Perl modules, and external programs.
+
+<h4>Perl modules</h4>
+<p>All of the following must be installed for all the scripts to work properly:
+
+<ul>
+<li><a href="http://www.bioPerl.org">BioPerl</a>.
+<li><a href="http://cpan.uwinnipeg.ca/module/Config::Simple">Config::Simple</a>.
+<li><a href="http://cpan.uwinnipeg.ca/module/Getopt::Std">Getopt::Std</a>.
+</ul>
+
+<p>More information on installing Perl modules can be found at <a href="http://www.Perl.com/CPAN/">CPAN</a>. However, many of them will be installed as standard with Perl 5.8.3 (if so, <b>man</b> or <b>Perldoc</b> should provide information).
+
+<h4>External programs</h4>
+<p>The following external applications are used by msatfinder:
+
+<ul>
+<li><a href="http://130.14.29.110/BLAST/">BLAST</a>.
+<li><a href="http://www.gnuplot.info/download.html">Gnuplot</a>. 
+</ul><center>
+<br><a href="#index">To the top.</a>
+</center>
+<hr>
+<hr>
+<font color="green">
+<center>
+<h1><a name="yamap">The YAMAP interface</h1>
+</center>
+</font>
+<p>QuickMine has been integrated into the YAMAP graphical interface. This makes it a much easier process to run QuickMine. Firstly you must choose whether to run a Self_BLAST or a Database BLAST. These must be configured by selecting the relevant 'Configure' button. Select the significance value for the QuickMine parser scripts, any database hit not within this threshold will be ignored by QuickMine. The next step involves selecting to run with Basic default options or by using more Advanced options.
+<h3><a name="basic">Basic</h3>
+<p>Selecting to run QuickMine using default settings is the simplest method for users to generate output. By default, QuickMine will run the first sections of the pipeline. It will parse the input files, performs the BLASTs and produce summary output files in HTML. It won't perform orphan analyses and won't perform any plotting functions.
+<h3><a name="advanced">Advanced</h3>
+<p>Selecting to run QuickMine with advanced settings permits you to select whether or not to run the different parts of the pipeline. For example if you have already performed the parsing of the input files and BLASTing stages and you just want to use QuickMine to parse the BLAST reports. Simply by clicking on the relevant check buttons allows you to turn on and off sections of the pipeline.<br><br>
+However, choosing to run QuickMine in this form is prone to error. If in doubt please use the Basic settings.<br<br>
+<br><center><a href="#index">To the top.</a>
+</center>
+<hr>
+<hr>
+<font color="green">
+<center>
+<h1><a name="other_things">Other Information</h1>
+</center>
+</font>
+<h2><a name="bugs">Bug reporting/known bugs</a></h2>
+<p>Though we are using this software successfully, there's a chance of bugs turning up somewhere. Should you find any, please contact us (details below) and we will attempt to squash them. If you're using QuickMine, there are a few things that you ought to bear in mind.
+<ul>
+<li>The most reliable method of performing a complete QuickMine run is by using YAMAP and the default settings.
+<li>The more data you have as input the more time it will take for QuickMine to run. Both performing the BLASTs and parsing through the BLAST reports is particularly time-consuming.
+<li>QuickMine was originally developed for use with complete bacterial proteomes and a SELF-BLAST database. Therefore, depending on your input, some of the output files may be of no worth to your particular analysis.
+</ul>
+
+<p>We welcome suggestions for new features or other improvements. 
+
+<h2><a name="convert">File conversion/handling methods</a></h2>
+<p>For converting files you could use <a href="http://www.hgmp.mrc.ac.uk/Software/EMBOSS/Apps/seqret.html">Seqret</a> (from <a href="http://www.emboss.org">EMBOSS</a>), or use <a href="ftp://ftp.bio.indiana.edu/molbio/readseq/">readseq</a>.
+<br><center><a href="#index">To the top.</a>
+</center>
+</td></tr>
+</body>
+</html>
+

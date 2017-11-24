@@ -1,0 +1,164 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>pfam_scan.pl - search protein fasta sequences against the Pfam
+library of HMMs.</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#version">VERSION</a></li>
+	<li><a href="#requirements">REQUIREMENTS</a></li>
+	<li><a href="#how_to_install_pfam_locally">HOW TO INSTALL PFAM LOCALLY</a></li>
+	<li><a href="#searching_pfam">SEARCHING PFAM</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#history">HISTORY</a></li>
+	<li><a href="#contact">CONTACT</a></li>
+</ul>
+<!-- INDEX END -->
+
+<hr />
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>pfam_scan.pl - search protein fasta sequences against the Pfam
+library of HMMs.</p>
+<p>
+</p>
+<hr />
+<h1><a name="version">VERSION</a></h1>
+<p>This is version 0.5 of pfam_scan.pl.  See the history section for
+recent changes.</p>
+<p>Behaviour of recent versions is a significantly different from 0.1.
+From version 0.5, overlapping matches to families within the same clan
+are removed, keeping the best scoring hit.  This behaviour can be
+overridden with the --overlap option.  From version 0.2, we can use
+BLAST to preprocess the input sequences with the --fast option, so we
+only have to search a subset of sequences against a subset of HMMs
+using hmmpfam.  For puritanical reasons we don't do this by default!
+Read the notes about this below.</p>
+<p>This version has been tested with Perl 5.6.1, Pfam 10.0 (through
+13.0), Bioperl 1.2 and HMMER 2.3.1.  It should work with any versions
+higher than these.</p>
+<p>
+</p>
+<hr />
+<h1><a name="requirements">REQUIREMENTS</a></h1>
+<pre>
+ - this script
+ - Perl 5.6 or higher (and maybe lower)
+ - The Pfam database (downloadable from
+   <a href="ftp://ftp.sanger.ac.uk/pub/databases/Pfam/">ftp://ftp.sanger.ac.uk/pub/databases/Pfam/</a>)
+ - HMMER software (from <a href="http://hmmer.wustl.edu/">http://hmmer.wustl.edu/</a>)
+ - NCBI BLAST binaries (from <a href="http://www.ncbi.nlm.nih.gov/Ftp/">http://www.ncbi.nlm.nih.gov/Ftp/</a>)
+ - Bioperl (from <a href="http://bio.perl.org/">http://bio.perl.org/</a>)</pre>
+<p>The Bioperl modules directory must be in your perl library path, and
+the HMMER and BLAST binaries must be in your executable path.</p>
+<p>You also need to be able to read and write to /tmp on your machine.</p>
+<p>Some of these requirements are easily circumvented, but this script
+should at least give you a start.</p>
+<p>
+</p>
+<hr />
+<h1><a name="how_to_install_pfam_locally">HOW TO INSTALL PFAM LOCALLY</a></h1>
+<p>1. Get the Pfam database from
+   <a href="ftp://ftp.sanger.ac.uk/pub/databases/Pfam/.">ftp://ftp.sanger.ac.uk/pub/databases/Pfam/.</a>  In particular you need
+   the files Pfam-A.fasta, Pfam_ls, Pfam_fs, and Pfam-A.seed.</p>
+<p>2. Unzip them if necessary
+    $ gunzip Pfam*.gz</p>
+<p>3. Grab and install HMMER, NCBI BLAST and Bioperl, and make sure your
+   paths etc are set up properly.</p>
+<p>4. Index Pfam-A.fasta for BLAST searches
+    $ formatdb -i Pfam-A.fasta -p T</p>
+<p>5. Index the Pfam_ls and Pfam_fs libraries for HMM fetching
+    $ hmmindex Pfam_ls
+    $ hmmindex Pfam_fs</p>
+<p>
+</p>
+<hr />
+<h1><a name="searching_pfam">SEARCHING PFAM</a></h1>
+<p>This script is really just a wrapper around hmmpfam.</p>
+<p>Run pfam_scan.pl -h to get a list of options.  Probably the only thing
+to worry about is supplying the -d option with the location of your
+downloaded Pfam database.  Or you can set the PFAMDB environment
+variable to point to the right place and things should work without
+-d.  And you should decide whether or not to use --fast.</p>
+<p>A few things to note:</p>
+<p>--fast uses BLAST as a preprocessor to reduce the amount of compute we
+have to do with hmmpfam.  This is known to reduce sensitivity in the
+case of a very small number of families (those whose length is
+exceptionally short, like the XYPPX repeat).  If you're annotating
+genomes then you *probably* don't care too much about these families.
+Omiting this option may give you a small added sensitivity, but with a
+rough 10 fold time cost.  If you want to exactly replicate the Pfam
+web site results or distributed data, you probably shouldn't use this.</p>
+<p>Overlapping above-threshold hits to families within the same clan are
+removed -- only the best scoring hit is kept.  You can override this
+behaviour with the --overlap option.</p>
+<p>Pfam provides two sets of models, called ls and fs models, for whole
+domain and fragment searches.  This wrapper basically returns all hits
+to the ls models, and then adds to these all non-overlapping hits to
+the fragment models.  This mimics the behaviour of Pfam web site
+searches.  You can choose to search only one set of models with the
+--mode option.</p>
+<p>Unless you want to grub around in the noise you should probably use
+the default thresholds - these are hand curated for every family by
+the Pfam team, such that we believe false positives will not score
+above these levels.  The consequence is that some families may miss
+members.</p>
+<p>You may want to adjust the threshold used for the preprocessing BLAST
+search (default evalue 10).  Raising this to 50 will slow everything
+down a bit but may gain you a little sensitivity.  Lowering the evalue
+cutoff will speed things up but with an inevitable sensitivity cost.</p>
+<p>It is important that each sequence in the fasta file has a unique
+identifier.  Note that the fasta header format should be:</p>
+<p>&gt;identifier  &lt;optional description&gt;</p>
+<p>so the identifier should not contain whitespace.</p>
+<p>The format of the output is:</p>
+<p>&lt;seq id&gt; &lt;seq start&gt; &lt;seq end&gt; &lt;hmm acc&gt; &lt;hmm start&gt; &lt;hmm end&gt; &lt;bit score&gt; &lt;evalue&gt; &lt;hmm name&gt;</p>
+<p>hmmpfam returns scores for sequence and domain matches seperately.
+For simplicity, the single line for each domain format returned here
+reports domain scores.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>Many options are not rigorously tested.  Error messages are
+uninformative.  The documentation is inadequate.  You may find it
+useful.  You may not.</p>
+<p>
+</p>
+<hr />
+<h1><a name="history">HISTORY</a></h1>
+<p>Version     Main changes
+-------     ------------</p>
+<p>0.5         Removes overlapping above-threshold hits to families
+            within the same clan. --overlap overrides.</p>
+<p>0.4         Work-around for hmmpfam bug/feature that reports hits
+            above domain threshold even if the sequence doesn't 
+            score above the sequence threshold.</p>
+<p>0.3         Fix minor bugs to be compatable with HMM versions in
+            Pfam 13.</p>
+<p>0.2         --fast option to use BLAST preprocessing for significant
+            speed-up.</p>
+<p>0.1         First effort, simply wraps up hmmpfam without doing
+            anything clever.</p>
+<p>
+</p>
+<hr />
+<h1><a name="contact">CONTACT</a></h1>
+<p>This script is copyright (c) Genome Research Ltd 2002-2005.  Please
+contact <a href="mailto:pfam@sanger.ac.uk">pfam@sanger.ac.uk</a> for help.</p>
+
+</body>
+
+</html>
